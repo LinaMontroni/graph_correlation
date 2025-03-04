@@ -5,3 +5,6 @@ This repository contains the source code for the thesis **"Graph Correlation: A 
 
 ## Setup  
 The source code can be executed using Jupyter Notebook files included in the repository.
+
+## GitHub reference repos
+Some code were based on https://github.com/dcuoliveira/graph-corr-embedd 
