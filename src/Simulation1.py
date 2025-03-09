@@ -12,7 +12,7 @@ from src.models.Spectral_Radius import *
 from scipy.stats import spearmanr
 
 
-class Simulation1Evaluation():
+class Simulation1Evaluation:
 
     def __init__(self,n_nodes,n_graphs,graph_name):
         self.graph_name = graph_name
