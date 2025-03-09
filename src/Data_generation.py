@@ -128,44 +128,43 @@ class GraphSim:
             return self.simulate_barabasi_albert(n=n_nodes, m=3, ps=ps[0])
 
 
-class NodeFeaturesGeneration():
-    
-    def __init__(self,graph, adj_matrix: torch.Tensor):
+
+class NodeFeaturesGeneration:
+    def __init__(self, graph, adj_matrix: torch.Tensor):
         """
         Node features generation class.
 
         Args:
             graph: graph data (nx object)
-            adj_matrix: graph adjacent matrix 
-
-        Returns:
-            None
+            adj_matrix: graph adjacency matrix 
         """
         self.graph = graph
         self.adj_matrix = adj_matrix
+        self.n = adj_matrix.size(0)  # Number of nodes
+
+        # Precompute degree, clustering, and betweenness centrality once
+        self.degree = adj_matrix.sum(dim=1, keepdim=True)
+        self.clustering_coefficient = torch.tensor(list(nx.clustering(graph).values())).view(self.n, 1)
+        self.betweenness_centrality = torch.tensor(list(nx.betweenness_centrality(graph).values())).view(self.n, 1)
+        self.closeness_centrality = torch.tensor(list(nx.closeness_centrality(graph).values())).view(self.n, 1)
+        self.pagerank = torch.tensor(list(nx.pagerank(graph).values())).view(self.n, 1)
+        self.triangle_count = torch.tensor(list(nx.triangles(graph).values())).view(self.n, 1)
+        self.motif_local_density = torch.tensor(
+            [nx.density(nx.ego_graph(graph, node)) for node in graph.nodes]
+        ).view(self.n, 1)
 
     def DegreeEncoding(self):
         """
         Compute degree encoding for nodes in a graph given its adjacency matrix.
     
-        Parameters:
-        adj_matrix (torch.Tensor): Adjacency matrix of the graph (n x n)
-    
         Returns:
         torch.Tensor: Degree encoding of the nodes (n x 1)
         """
-        # Ensure the adjacency matrix is square
-        assert self.adj_matrix.size(0) == self.adj_matrix.size(1), "Adjacency matrix must be square"
-    
-        # Compute the degree of each node (sum of each row in the adjacency matrix)
-        degree = self.adj_matrix.sum(dim=1, keepdim=True)
-    
-        return degree
-    
-    
-    def LaplacianEncoding(self, l: int=3):
+        return self.degree
+
+    def LaplacianEncoding(self, l: int = 3):
         """
-        Compute Laplacian (positional) encoding for nodes in a graph given its adjacency matrix.
+        Compute Laplacian encoding for nodes in a graph given its adjacency matrix.
     
         Parameters:
            l (int): Number of principal eigenvectors to use in the encoding
@@ -173,119 +172,64 @@ class NodeFeaturesGeneration():
         Returns:
            torch.Tensor: Laplacian encoding of the nodes (n x l)
         """
-        # Ensure the adjacency matrix is square
-        assert self.adj_matrix.size(0) == self.adj_matrix.size(1), "Adjacency matrix must be square"
-    
         # Convert adjacency matrix to numpy array for compatibility with scipy
         adj_matrix_np = self.adj_matrix.numpy()
-    
+
         # Compute the degree matrix
         degree_matrix = np.diag(adj_matrix_np.sum(axis=1))
-    
+
         # Compute the normalized Laplacian matrix
         d_root_inv = 1.0 / np.sqrt(degree_matrix)
         d_root_inv[np.isinf(d_root_inv)] = 0
-    
+
         laplacian = np.eye(adj_matrix_np.shape[0]) - d_root_inv @ adj_matrix_np @ d_root_inv
-    
+
         # Compute the eigenvalues and eigenvectors of the Laplacian matrix
         eigvals, eigvecs = eigh(laplacian)
-    
-        # Select the first l eigenvectors (corresponding to the smallest eigenvalues)
+
+        # Select the first l eigenvectors
         encoding = eigvecs[:, :l]
-    
+
         return torch.tensor(encoding, dtype=torch.float)
-   
-    
+
     def ClusteringCoefficient(self):
         """
         Compute the Clustering Coefficient for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: clustering coefficient 
         """
-        # Ensure the adjacency matrix is square
-        assert self.adj_matrix.size(0) == self.adj_matrix.size(1), "Adjacency matrix must be square"
-        n = self.adj_matrix.size(0)
-    
-        # Compute the degree of each node (sum of each row in the adjacency matrix)
-        clustering_coefficient = list(nx.clustering(self.graph).values())
-    
-        return torch.tensor(clustering_coefficient).view(n,1)
-    
+        return self.clustering_coefficient
+
     def BetweennessCentrality(self):
         """
         Compute the Betweenness Centrality for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: betweenness centrality 
         """
-    
-        n = self.adj_matrix.size(0)
-    
-        betweenness_centrality = list(nx.betweenness_centrality(self.graph).values())
-    
-        return torch.tensor(betweenness_centrality).view(n,1)
-    
+        return self.betweenness_centrality
+
     def EigenvectorCentrality(self):
         """
         Compute the Eigenvector Centrality for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: eigenvector centrality
         """
-    
-        n = self.adj_matrix.size(0)
-    
         adj_matrix_np = self.adj_matrix.numpy()
         G = igraph.Graph.Adjacency((adj_matrix_np > 0).tolist())
         eigenvector_centrality = G.eigenvector_centrality()
-       
-        return torch.tensor(eigenvector_centrality).view(n,1)
-    
-    
+
+        return torch.tensor(eigenvector_centrality).view(self.n, 1)
+
     def ClosenessCentrality(self):
         """
         Compute the Closeness Centrality for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: closeness centrality
         """
-    
-        n = self.adj_matrix.size(0)
-    
-        closeness_centrality = list(nx.closeness_centrality(self.graph).values())
-    
-        return torch.tensor(closeness_centrality).view(n,1)
-    
-    
-    
+        return self.closeness_centrality
+
     def Pagerank(self):
         """
         Compute Pagerank for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: pagerank
         """
-    
-        n = self.adj_matrix.size(0)
-    
-        pagerank = list(nx.pagerank(self.graph).values())
-    
-        return torch.tensor(pagerank).view(n,1)
-    
+        return self.pagerank
+
     def LocalGraphDensity(self):
         """
         Compute the Local Graph Density for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: local graph density
         """
-        n = self.adj_matrix.size(0)
-    
-        source_node = 0
-        graph_distance = nx.single_source_shortest_path_length(self.graph, source_node)
-    
         def local_graph_density(graph, node):
             neighbors = list(graph.neighbors(node))
             if not neighbors:
@@ -293,64 +237,38 @@ class NodeFeaturesGeneration():
             subgraph = self.graph.subgraph(neighbors + [node])  # include the node itself
             num_edges = len(subgraph.edges())
             return num_edges / (len(neighbors) * (len(neighbors) - 1) / 2) if len(neighbors) > 1 else 0
-    
+
         local_densities = list({node: local_graph_density(self.graph, node) for node in self.graph.nodes()}.values())
-        return torch.tensor(local_densities).view(n,1)
+        return torch.tensor(local_densities).view(self.n, 1)
 
     def TriangleCount(self):
         """
-        Count how many traingles (comple graphs of size 3) are in the graph. 
-        
-        Returns:
-        torch.Tensor: triangle count
+        Count how many triangles (complete graphs of size 3) are in the graph. 
         """
-        # Triangle Count
-        n = self.adj_matrix.size(0)
-        triangle_count = nx.triangles(self.graph)
-        triangle_count = list(triangle_count.values())
-     
-        return torch.tensor(triangle_count).view(n,1)
-
+        return self.triangle_count
 
     def MotifBasedLocalDensity(self):
         """
         Compute the Motif Based Local Density for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: motif based local density
         """
-        # Motif-Based Local Density: Density of the subgraph formed by neighbors
-        n = self.adj_matrix.size(0)
-        motif_local_density = {
-          node: nx.density(nx.ego_graph(self.graph, node)) for node in self.graph.nodes
-        }
-        motif_local_density = list(motif_local_density.values())
-    
-        return torch.tensor(motif_local_density).view(n,1)
-
-
+        return self.motif_local_density
 
     def LocalClusteringChange(self):
         """
         Compute the Local Clustering Change for all nodes in a graph.
-
-        Returns:
-         torch.Tensor: local clustering change
         """
-        # Local Clustering Change: Not directly computed in NetworkX, simulate a change
-        # Assuming you compare with a base graph G_base
-        n = self.adj_matrix.size(0)
+        n = self.n
         G_base = nx.watts_strogatz_graph(n, 3, 0)  # Base graph without rewiring
         local_clustering_change = {
-          node: nx.clustering(self.graph)[node] - nx.clustering(G_base)[node]
-          for node in self.graph.nodes
+            node: self.clustering_coefficient[node] - nx.clustering(G_base)[node]
+            for node in self.graph.nodes
         }
         local_clustering_change = list(local_clustering_change.values())
-    
-        return torch.tensor(local_clustering_change).view(n,1)
+
+        return torch.tensor(local_clustering_change).view(n, 1)
 
 
-class DataGeneration():
+class DataGeneration:
     
     def __init__(self,simulation_name,n_simulations):
         """
