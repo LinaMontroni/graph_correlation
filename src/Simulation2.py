@@ -11,7 +11,7 @@ from torch_geometric.data import Data, DataLoader
 from scipy.stats import spearmanr
 from src.models.Spectral_Radius import *
 
-class Simulation2Evaluation():
+class Simulation2Evaluation:
     
     
     def __init__(self,n_nodes,n_graphs,graph_names,simulation_name):
