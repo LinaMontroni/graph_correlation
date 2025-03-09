@@ -109,7 +109,7 @@ def bootstrap_ci(x, y, n_bootstrap=1000, ci=95, method='left'):
     return mean_integral, lower_bound, upper_bound
 
     
-class GenerateSimulationPlot():
+class GenerateSimulationPlot:
 
     def __init__(self):
         """
