@@ -1,7 +1,7 @@
 import numpy as np 
 from scipy.sparse.linalg import eigs
 
-class SpectralRadius():
+class SpectralRadius:
     def _init_():
         """
         Spectral Radius method implementation
